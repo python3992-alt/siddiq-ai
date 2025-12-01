@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Siddiq AI - Mobile</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;700&family=Space+Grotesk:wght@300;500;700&display=swap');
+
+        /* --- WARNA & TEMA --- */
+        :root {
+            --primary: #00f2ff;
+            --secondary: #bc13fe;
+            --bg: #050505;
+            --panel: rgba(20, 20, 30, 0.8);
+        }
+
+        body {
+            background-color: var(--bg);
+            font-family: 'Space Grotesk', sans-serif;
+            color: white;
+            overflow-x: hidden;
+            /* Mencegah highlight biru saat tap di Android */
+            -webkit-tap-highlight-color: transparent; 
+        }
+
+        /* --- BACKGROUND GRID BERGERAK --- */
+        .cyber-bg {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-image: 
+                linear-gradient(rgba(0, 242, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(188, 19, 254, 0.03) 1px, transparent 1px);
+            background-size: 30px 30px;
+            z-index: -1;
+        }
+
+        /* --- LAYOUT CONTAINER (Kunci Simetris) --- */
+        .mobile-container {
+            max-width: 480px; /* Lebar maksimal seperti HP */
+            margin: 0 auto;   /* Posisi Tengah */
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background: rgba(0,0,0,0.2);
+            box-shadow: 0 0 50px rgba(0,0,0,0.5);
+            border-left: 1px solid rgba(255,255,255,0.05);
+            border-right: 1px solid rgba(255,255,255,0.05);
+            position: relative;
+        }
+
+        /* --- DISPLAY IMAGE (HUD STYLE) --- */
+        .display-frame {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 1/1; /* Default Kotak */
+            background: #0a0a12;
+            border-bottom: 2px solid var(--primary);
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 30px -10px rgba(0, 242, 255, 0.2);
+        }
+        
+        .hud-corner {
+            position: absolute;
+            width: 20px; height: 20px;
+            border: 2px solid var(--primary);
+            transition: all 0.3s;
+        }
+        .tl { top: 10px; left: 10px; border-right: 0; border-bottom: 0; }
+        .tr { top: 10px; right: 10px; border-left: 0; border-bottom: 0; }
+        .bl { bottom: 10px; left: 10px; border-right: 0; border-top: 0; }
+        .br { bottom: 10px; right: 10px; border-left: 0; border-top: 0; }
+
+        /* --- TOMBOL GENERATE (SERPIS) --- */
+        .btn-main {
+            background: linear-gradient(135deg, var(--secondary), var(--primary));
+            border: none;
+            color: white;
+            font-family: 'Rajdhani', sans-serif;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.1s;
+            box-shadow: 0 0 20px rgba(188, 19, 254, 0.4);
+        }
+        
+        .btn-main:active {
+            transform: scale(0.96); /* Efek tekan */
+            filter: brightness(1.2);
+        }
+        
+        /* Efek Kilatan saat klik */
+        .btn-main::after {
+            content: '';
+            position: absolute;
+            top: -50%; left: -50%;
+            width: 200%; height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.8) 0%, transparent 60%);
+            opacity: 0;
+            transform: scale(0.5);
+            transition: opacity 0s;
+        }
+        .btn-main.clicked::after {
+            opacity: 1;
+            animation: ripple 0.5s ease-out;
+        }
+        @keyframes ripple {
+            to { transform: scale(2); opacity: 0; }
+        }
+
+        /* --- LOADING SCANNER --- */
+        .scan-line {
+            width: 100%; height: 2px;
+            background: var(--primary);
+            box-shadow: 0 0 15px var(--primary);
+            position: absolute; top: 0;
+            animation: scan 1.5s ease-in-out infinite;
+        }
+        @keyframes scan {
+            0% { top: 0%; opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { top: 100%; opacity: 0; }
+        }
+
+        /* --- INPUTS --- */
+        .glass-input {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            backdrop-filter: blur(5px);
+            color: white;
+            transition: all 0.3s;
+        }
+        .glass-input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 10px rgba(0, 242, 255, 0.2);
+            outline: none;
+        }
+
+        /* Custom Scrollbar hidden */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body>
+
+    <!-- Audio Effects -->
+    <audio id="bgMusic" loop>
+        <source src="https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3" type="audio/mpeg">
+    </audio>
+    <audio id="clickSfx">
+        <source src="https://cdn.pixabay.com/download/audio/2022/03/10/audio_c635338002.mp3" type="audio/mpeg">
+    </audio>
+    <audio id="successSfx">
+        <source src="https://cdn.pixabay.com/download/audio/2022/01/18/audio_c67425b035.mp3" type="audio/mpeg">
+    </audio>
+
+    <div class="cyber-bg"></div>
+
+    <!-- INTRO OVERLAY -->
+    <div id="intro" class="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center transition-all duration-700">
+        <div class="text-center animate-pulse mb-8">
+            <i class="fa-solid fa-fingerprint text-6xl text-cyan-400 mb-4"></i>
+            <h1 class="text-4xl font-bold font-[Rajdhani] tracking-widest text-white">SIDDIQ AI</h1>
+            <p class="text-xs text-slate-500 mt-2">SYSTEM READY</p>
+        </div>
+        <button onclick="startApp()" class="px-8 py-3 rounded-full border border-cyan-500 text-cyan-400 font-bold hover:bg-cyan-500 hover:text-black transition">
+            TAP TO START
+        </button>
+    </div>
+
+    <!-- MAIN APP CONTAINER -->
+    <div id="app" class="mobile-container hidden opacity-0 transition-opacity duration-500">
+        
+        <!-- 1. TOP HEADER (LOGO) -->
+        <header class="p-4 flex justify-between items-center bg-black/40 backdrop-blur-md border-b border-white/5 sticky top-0 z-30">
+            <div class="flex items-center gap-2">
+                <i class="fa-solid fa-robot text-cyan-400"></i>
+                <span class="font-bold tracking-wider font-[Rajdhani] text-lg">SIDDIQ.AI</span>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="toggleMusic()" id="musicIcon" class="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-xs text-white/70">
+                    <i class="fa-solid fa-music"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- 2. IMAGE DISPLAY (HERO) -->
+        <div class="relative w-full z-10 bg-black">
+            <div id="displayFrame" class="display-frame">
+                <!-- HUD Corners -->
+                <div class="hud-corner tl"></div><div class="hud-corner tr"></div>
+                <div class="hud-corner bl"></div><div class="hud-corner br"></div>
+
+                <!-- Placeholder -->
+                <div id="placeholder" class="text-center px-6">
+                    <i class="fa-solid fa-eye text-4xl text-white/20 mb-3 animate-bounce"></i>
+                    <p class="text-white/40 text-sm">Visual Data Empty</p>
+                </div>
+
+                <!-- Loader -->
+                <div id="loader" class="hidden absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-20">
+                    <div class="scan-line"></div>
+                    <div class="text-cyan-400 font-mono text-xs mb-2">PROCESSING...</div>
+                    <div class="w-1/2 h-1 bg-gray-800 rounded overflow-hidden">
+                        <div class="h-full bg-cyan-400 animate-progress"></div>
+                    </div>
+                </div>
+
+                <!-- Result Image -->
+                <img id="resultImg" class="hidden w-full h-full object-contain" onclick="openFullscreen(this)">
+                
+                <!-- Action Buttons (Overlay) -->
+                <div id="imgActions" class="hidden absolute bottom-4 right-4 flex gap-2">
+                    <button onclick="downloadImg()" class="w-10 h-10 rounded-full bg-black/60 backdrop-blur text-white border border-white/20 flex items-center justify-center active:scale-90 transition">
+                        <i class="fa-solid fa-download"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. SCROLLABLE CONTROLS -->
+        <div class="flex-1 overflow-y-auto no-scrollbar p-5 space-y-6 pb-24">
+            
+            <!-- Prompt Input -->
+            <div class="space-y-2">
+                <div class="flex justify-between items-end">
+                    <label class="text-xs font-bold text-cyan-400 tracking-wider">PROMPT</label>
+                    <div class="flex items-center gap-2 px-2 py-1 rounded bg-purple-900/30 border border-purple-500/30">
+                        <span class="text-[10px] text-purple-300">MAGIC MODE</span>
+                        <div class="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
+                    </div>
+                </div>
+                <textarea id="promptIn" rows="3" class="w-full glass-input rounded-xl p-4 text-sm" placeholder="Tulis imajinasimu disini..."></textarea>
+            </div>
+
+            <!-- Settings Grid (Symmetrical) -->
+            <div class="grid grid-cols-2 gap-4">
+                <!-- Style Select -->
+                <div class="space-y-2">
+                    <label class="text-xs font-bold text-gray-500 tracking-wider">STYLE</label>
+                    <select id="styleSel" class="w-full glass-input rounded-lg p-3 text-xs h-12">
+                        <option value="realistic">📸 Realistic</option>
+                        <option value="anime">🎎 Anime</option>
+                        <option value="cyberpunk">🌃 Cyberpunk</option>
+                        <option value="3d">🧊 3D Render</option>
+                        <option value="painting">🎨 Painting</option>
+                    </select>
+                </div>
+                <!-- Ratio Select -->
+                <div class="space-y-2">
+                    <label class="text-xs font-bold text-gray-500 tracking-wider">RATIO</label>
+                    <select id="ratioSel" onchange="changeRatio(this.value)" class="w-full glass-input rounded-lg p-3 text-xs h-12">
+                        <option value="1:1">Kotak (1:1)</option>
+                        <option value="3:4">Potrait (3:4)</option>
+                        <option value="16:9">Landscape</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Info Text -->
+            <p class="text-[10px] text-center text-white/30 pt-4">
+                Siddiq AI System v3.0 • Powered by Neural Networks
+            </p>
+        </div>
+
+        <!-- 4. BOTTOM ACTION BAR (Sticky Button) -->
+        <div class="fixed bottom-0 w-full max-w-[480px] p-4 bg-gradient-to-t from-black via-black to-transparent z-40">
+            <button onclick="generate()" id="genBtn" class="btn-main w-full h-14 rounded-xl shadow-lg flex items-center justify-center gap-3 text-lg">
+                <i class="fa-solid fa-bolt"></i> GENERATE
+            </button>
+        </div>
+
+    </div>
+
+    <script>
+        /* --- CONFIG --- */
+        let width = 1024;
+        let height = 1024;
+        const audio = document.getElementById('bgMusic');
+        
+        /* --- SYSTEM FUNCTIONS --- */
+        function startApp() {
+            const intro = document.getElementById('intro');
+            const app = document.getElementById('app');
+            
+            // Fullscreen trigger for Android
+            if (document.documentElement.requestFullscreen) {
+                document.documentElement.requestFullscreen().catch((e)=>{});
+            }
+
+            intro.style.opacity = '0';
+            setTimeout(() => {
+                intro.style.display = 'none';
+                app.classList.remove('hidden');
+                setTimeout(() => app.style.opacity = '1', 50);
+                
+                // Play Music
+                audio.volume = 0.3;
+                audio.play().catch(e => console.log('Audio blocked'));
+            }, 700);
+        }
+
+        function toggleMusic() {
+            const icon = document.querySelector('#musicIcon i');
+            if(audio.paused) {
+                audio.play();
+                icon.className = "fa-solid fa-music";
+                icon.parentElement.style.color = "white";
+            } else {
+                audio.pause();
+                icon.className = "fa-solid fa-volume-xmark";
+                icon.parentElement.style.color = "gray";
+            }
+        }
+
+        function changeRatio(val) {
+            const frame = document.getElementById('displayFrame');
+            if(val === '1:1') { width=1024; height=1024; frame.style.aspectRatio = '1/1'; }
+            if(val === '3:4') { width=768; height=1024; frame.style.aspectRatio = '3/4'; }
+            if(val === '16:9') { width=1280; height=720; frame.style.aspectRatio = '16/9'; }
+        }
+
+        /* --- GENERATE LOGIC --- */
+        function generate() {
+            const prompt = document.getElementById('promptIn').value.trim();
+            const btn = document.getElementById('genBtn');
+            
+            // Effect: Button Click Animation & Sound
+            document.getElementById('clickSfx').currentTime = 0;
+            document.getElementById('clickSfx').play();
+            btn.classList.add('clicked');
+            setTimeout(() => btn.classList.remove('clicked'), 300);
+
+            if(!prompt) {
+                // Shake effect if empty
+                document.getElementById('promptIn').classList.add('border-red-500');
+                setTimeout(() => document.getElementById('promptIn').classList.remove('border-red-500'), 500);
+                return;
+            }
+
+            // UI State: Loading
+            document.getElementById('placeholder').classList.add('hidden');
+            document.getElementById('resultImg').classList.add('hidden');
+            document.getElementById('imgActions').classList.add('hidden');
+            document.getElementById('loader').classList.remove('hidden');
+
+            // Magic Prompt Logic
+            const style = document.getElementById('styleSel').value;
+            let styleText = "";
+            if(style === 'realistic') styleText = "photorealistic, 8k, raw photo, realistic lighting";
+            if(style === 'anime') styleText = "anime style, high quality, studio ghibli, vivid colors";
+            if(style === 'cyberpunk') styleText = "cyberpunk city, neon, futuristic, sci-fi, detailed";
+            if(style === '3d') styleText = "3d render, blender, unreal engine 5, cute, plastic texture";
+            if(style === 'painting') styleText = "digital painting, oil on canvas, artistic, masterpiece";
+
+            const finalPrompt = `${prompt}, ${styleText}, best quality, ultra detailed`;
+            const seed = Math.floor(Math.random() * 1000000);
+            const url = `https://pollinations.ai/p/${encodeURIComponent(finalPrompt)}?width=${width}&height=${height}&seed=${seed}&model=flux`;
+
+            // Load Image
+            const img = new Image();
+            img.src = url;
+            
+            img.onload = () => {
+                document.getElementById('loader').classList.add('hidden');
+                const res = document.getElementById('resultImg');
+                res.src = url;
+                res.classList.remove('hidden');
+                document.getElementById('imgActions').classList.remove('hidden');
+                document.getElementById('successSfx').play();
+                
+                // Auto scroll to top if needed
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            };
+
+            img.onerror = () => {
+                document.getElementById('loader').classList.add('hidden');
+                document.getElementById('placeholder').classList.remove('hidden');
+                alert("Server Error. Try again.");
+            };
+        }
+
+        function downloadImg() {
+            const link = document.createElement('a');
+            link.href = document.getElementById('resultImg').src;
+            link.download = `SiddiqAI-${Date.now()}.jpg`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+        
+        function openFullscreen(elem) {
+            if (elem.requestFullscreen) {
+                elem.requestFullscreen();
+            } else if (elem.webkitRequestFullscreen) { /* Safari */
+                elem.webkitRequestFullscreen();
+            }
+        }
+    </script>
+    
+    <style>
+        /* Animation untuk loader bar */
+        @keyframes progress {
+            0% { width: 0%; }
+            100% { width: 100%; }
+        }
+        .animate-progress {
+            animation: progress 2s ease-in-out infinite;
+        }
+    </style>
+</body>
+</html>
+
+
